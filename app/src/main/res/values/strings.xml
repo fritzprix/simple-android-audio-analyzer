@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MediaProfiler</string>
+    <string name="media_profile_action_label_start">Start</string>
+    <string name="media_profile_action_label_stop">Stop</string>
+</resources>
