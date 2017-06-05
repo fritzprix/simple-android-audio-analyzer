@@ -13,6 +13,9 @@ import android.os.RemoteException;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.example.innocentevil.mediaprofiler.media.MediaProfiler;
+
+import java.io.FileDescriptor;
 import java.util.Locale;
 
 /**
@@ -67,13 +70,17 @@ public class PlayerService extends Service implements Handler.Callback {
             "STATE_READY"
     };
 
+    private static final int TASK_ID_MEDIA_PROFILE = 0x01;
+
     private HandlerThread mHandlerThread;
     private Messenger mServerMessenger;
     private Messenger mClientMessenger;
 
     private State mState;
+    private MediaProfiler mediaProfiler;
 
     PlayerService() {
+        mediaProfiler = new MediaProfiler(TASK_ID_MEDIA_PROFILE);
         mHandlerThread = new HandlerThread(TAG);
         mHandlerThread.start();
         mState = State.INIT;
@@ -127,6 +134,12 @@ public class PlayerService extends Service implements Handler.Callback {
                 switch (srcType) {
                     case SRC_LOCAL_FILE:
                         ParcelFileDescriptor pfd  = data.getParcelable(KEY_SRC);
+                        if(pfd == null) {
+                            return true;
+                        }
+
+                        FileDescriptor fd = pfd.getFileDescriptor();
+                        mediaProfiler.setMediaFile(fd, true);
                         break;
                     case SRC_REMOTE_URI:
                         break;
@@ -134,11 +147,32 @@ public class PlayerService extends Service implements Handler.Callback {
 
                 return true;
             case MSG_START:
+                msg = Message.obtain();
                 if(mState.ordinal() < State.READY.ordinal()) {
                     Log.e(TAG, String.format(Locale.getDefault(), NOT_READY, mState));
+                    msg.what = RESULT_NOK;
+                    try {
+                        mClientMessenger.send(msg);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, e.getLocalizedMessage());
+                    }
+                    return true;
+                }
+
+
+                mediaProfiler.start();
+                msg.what = RESULT_OK;
+                try {
+                    mClientMessenger.send(msg);
+                } catch (RemoteException e) {
+                    Log.e(TAG, e.getLocalizedMessage());
                 }
                 return true;
             case MSG_STOP:
+                msg = Message.obtain();
+                if(mState.ordinal() < State.PLAY.ordinal()) {
+                    Log.e(TAG, "");
+                }
                 return true;
             case MSG_PAUSE:
                 return true;
