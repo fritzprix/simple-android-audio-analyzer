@@ -39,7 +39,7 @@ public abstract class AbsAsyncTask implements Asynchronous, Runnable, Handler.Ca
     private Handler mainHandler;
     private float mProgress;
     private int taskId;
-    private WeakReference<Callback> wrCallback;
+    private WeakReference<TaskListener> wrCallback;
 
     public AbsAsyncTask(int taskId) {
         mainHandler = new Handler(Looper.getMainLooper(), this);
@@ -47,7 +47,7 @@ public abstract class AbsAsyncTask implements Asynchronous, Runnable, Handler.Ca
         mProgress = 0.0f;
         mState = STATE_INIT;
         done = false;
-        wrCallback = new WeakReference<Callback>(null);
+        wrCallback = new WeakReference<TaskListener>(null);
     }
 
 
@@ -62,8 +62,8 @@ public abstract class AbsAsyncTask implements Asynchronous, Runnable, Handler.Ca
         mProgress = 0.0f;
     }
 
-    public void setCallback(Callback callback){
-        wrCallback = new WeakReference<Callback>(callback);
+    public void setTaskListener(TaskListener callback){
+        wrCallback = new WeakReference<TaskListener>(callback);
     }
 
     @Override
@@ -156,22 +156,22 @@ public abstract class AbsAsyncTask implements Asynchronous, Runnable, Handler.Ca
 
     @Override
     final public boolean handleMessage(Message msg) {
-        Callback callback = wrCallback.get();
+        TaskListener callback = wrCallback.get();
         if(callback == null) {
             return false;
         }
         switch (msg.what) {
             case MSG_ID_START:
-                wrCallback.get().onStart(taskId);
+                wrCallback.get().onTaskStart(taskId);
                 return true;
             case MSG_ID_STOP:
-                wrCallback.get().onStop(taskId);
+                wrCallback.get().onTaskStop(taskId);
                 return true;
             case MSG_ID_UPDATE:
-                wrCallback.get().onProgressUpdate(taskId, mProgress);
+                wrCallback.get().onTaskProgressUpdate(taskId, mProgress);
                 return true;
             case MSG_ID_RESULT_AVAILABLE:
-                wrCallback.get().onResultAvailable(msg.getData());
+                wrCallback.get().onTaskResultAvailable(msg.getData());
                 return true;
         }
         return false;

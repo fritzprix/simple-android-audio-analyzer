@@ -6,6 +6,7 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.example.innocentevil.mediaprofiler.async.AbsAsyncMultiTask;
+import com.example.innocentevil.mediaprofiler.async.ThreadedTaskListener;
 
 import java.lang.ref.WeakReference;
 import java.nio.ShortBuffer;
@@ -20,17 +21,20 @@ import java.util.concurrent.TimeUnit;
 
 public class FrequencyExtractor extends AbsAsyncMultiTask {
 
+
     private static class Tone {
-        private static int PCM_MAX_16B = (1 << 16);
+        private static float PCM_MAX_16B = (1 << 15);
         private int sin[];
         private int cos[];
         private int freq;
+        private float normalizeFactor;
 
         private Tone(int freq, int sampleRate, int maxSize) {
             double unitTime = 1.0 / (double) sampleRate;
             this.freq = freq;
             sin = new int[maxSize];
             cos = new int[maxSize];
+            normalizeFactor = (PCM_MAX_16B * PCM_MAX_16B) / 4;
             for (int i = 0; i < maxSize; i++) {
                 sin[i] = (int)(PCM_MAX_16B * ((Math.sin(2 * Math.PI * freq * unitTime * i) / 2.0)));
                 cos[i] = (int)(PCM_MAX_16B * ((Math.cos(2 * Math.PI * freq * unitTime * i) / 2.0)));
@@ -42,7 +46,7 @@ public class FrequencyExtractor extends AbsAsyncMultiTask {
             for (int i = 0; i < size; i++) {
                 real += (buffer[i] * cos[i]);
             }
-            return real / size;
+            return real;
         }
 
         private int image(short[] buffer, int size) {
@@ -63,7 +67,11 @@ public class FrequencyExtractor extends AbsAsyncMultiTask {
             result.set(real, img);
         }
 
-        private int abs(short[] buffer, int size) {
+        private float abs(short[] buffer, int size) {
+            /*
+             * possible max. value happens when the frequency are matched
+             * pcm value
+             */
             if(size <= 0) {
                 return 0;
             }
@@ -73,9 +81,9 @@ public class FrequencyExtractor extends AbsAsyncMultiTask {
                 real += (buffer[i] * cos[i]);
                 img += (buffer[i] * sin[i]);
             }
-            real /= (size * PCM_MAX_16B);
-            img /= (size * PCM_MAX_16B);
-            return (int) Math.sqrt(real * real + img * img);
+            real /= (normalizeFactor * size);
+            img /= (normalizeFactor * size);
+            return (float) Math.sqrt(real * real + img * img);
         }
 
         public int getFreq() {
@@ -83,36 +91,37 @@ public class FrequencyExtractor extends AbsAsyncMultiTask {
         }
     }
 
-    public interface Callback extends AbsAsyncMultiTask.Callback {
+    public interface AsyncThreadedTaskListener extends ThreadedTaskListener {
         @Override
-        void onResultAvailable(int taskId, int threadId, Bundle param);
+        void onThreadedTaskResultAvailable(int taskId, int threadId, Bundle param);
 
         @Override
-        void onStop(int taskId, int threadId);
+        void onThreadedTaskStop(int taskId, int threadId);
 
         @Override
-        void onStart(int taskId, int threadId);
+        void onThreadedTaskStart(int taskId, int threadId);
 
         @Override
-        void onProgressUpdate(int taskId, int threadId, float progress);
+        void onThreadedTaskProgressUpdate(int taskId, int threadId, float progress);
 
-        void onFreqExtracted(int ...mag);
+        void onFreqExtracted(float[] mag);
     }
 
     protected static String TAG = FrequencyExtractor.class.getCanonicalName();
     private static final int QUEUE_SIZE = 10;
 
-    private WeakReference<Callback> wrCallback;
-    private int[] mags;
+    private WeakReference<AsyncThreadedTaskListener> wrCallback;
+    private float[] mags;
     private Tone[] mTones;
     private ArrayBlockingQueue<ShortBuffer> emptyQueue;
     private ArrayBlockingQueue<ShortBuffer> readyQueue;
 
+
     public FrequencyExtractor(int taskId,int sampleRate, int maxSize, int ...freqs) {
         super(taskId, 1);
         mTones = new Tone[freqs.length];
-        mags = new int[freqs.length];
-        wrCallback = new WeakReference<Callback>(null);
+        mags = new float[freqs.length];
+        wrCallback = new WeakReference<AsyncThreadedTaskListener>(null);
         Arrays.fill(mags, 0);
         for (int i = 0; i < mTones.length; i++) {
             mTones[i] = new Tone(freqs[i], sampleRate, maxSize);
@@ -126,9 +135,9 @@ public class FrequencyExtractor extends AbsAsyncMultiTask {
 
     }
 
-    public void setCallback(Callback callback) {
-        super.setCallback(callback);
-        wrCallback = new WeakReference<Callback>(callback);
+    public void setCallback(AsyncThreadedTaskListener callback) {
+        super.setThreadedTaskListener(callback);
+        wrCallback = new WeakReference<AsyncThreadedTaskListener>(callback);
     }
 
     @Nullable
@@ -161,7 +170,7 @@ public class FrequencyExtractor extends AbsAsyncMultiTask {
     }
 
     @Override
-    public void onResultAvailable(Bundle result) {
+    public void onTaskResultAvailable(Bundle result) {
 
     }
 

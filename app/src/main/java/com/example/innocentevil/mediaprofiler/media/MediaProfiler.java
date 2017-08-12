@@ -9,18 +9,16 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
-import android.provider.MediaStore;
 import android.util.Log;
 
-import com.example.innocentevil.mediaprofiler.BuildConfig;
 import com.example.innocentevil.mediaprofiler.async.AbsAsyncMultiTask;
+import com.example.innocentevil.mediaprofiler.async.ThreadedTaskListener;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.Locale;
-import java.util.concurrent.ArrayBlockingQueue;
 
 import static android.content.ContentValues.TAG;
 
@@ -40,12 +38,12 @@ public class MediaProfiler extends AbsAsyncMultiTask {
     private MediaFormat outFormat;
     private boolean isPlayback;
     private boolean isEos;
-    private WeakReference<Callback> wrCallback;
+    private WeakReference<AsyncThreadedTaskListener> wrCallback;
 
-    public interface Callback extends AbsAsyncMultiTask.Callback{
-        void onProgressUpdate(int taskId, int threadId, float progress);
-        void onStart(int taskId, int threadId);
-        void onStop(int taskId, int threadId);
+    public interface AsyncThreadedTaskListener extends ThreadedTaskListener {
+        void onThreadedTaskProgressUpdate(int taskId, int threadId, float progress);
+        void onThreadedTaskStart(int taskId, int threadId);
+        void onThreadedTaskStop(int taskId, int threadId);
         void onFormatUpdate(MediaFormat format);
         void onDataAvailable(ByteBuffer writeBuffer, int size, long presentationTimeUs);
     }
@@ -54,9 +52,9 @@ public class MediaProfiler extends AbsAsyncMultiTask {
         super(taskId, 2);
     }
 
-    public void setCallback(Callback callback) {
-        super.setCallback(callback);
-        wrCallback = new WeakReference<Callback>(callback);
+    public void setCallback(AsyncThreadedTaskListener callback) {
+        super.setThreadedTaskListener(callback);
+        wrCallback = new WeakReference<AsyncThreadedTaskListener>(callback);
     }
 
     public void setMediaFile(FileDescriptor fileDescriptor, boolean playback) {
@@ -96,8 +94,10 @@ public class MediaProfiler extends AbsAsyncMultiTask {
                     codec.start();
                     outFormat = codec.getOutputFormat();
                     Log.e(TAG, codec.getName());
+                    final int channelCount = outFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
                     isEos = false;
                     if(isPlayback) {
+                        int channleOut = channelCount > 1? AudioFormat.CHANNEL_OUT_STEREO : AudioFormat.CHANNEL_OUT_MONO;
                         int sampleRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
                         int pcmDepth;
                         if(outFormat.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
@@ -116,7 +116,7 @@ public class MediaProfiler extends AbsAsyncMultiTask {
                                 sampleRate, pcmDepth, bufferSize));
                         writeBuffer = ByteBuffer.allocate(bufferSize);
                         writeBuffer.position(0);
-                        mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRate, AudioFormat.CHANNEL_OUT_STEREO, pcmDepth, bufferSize, AudioTrack.MODE_STREAM);
+                        mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRate, channleOut, pcmDepth, bufferSize, AudioTrack.MODE_STREAM);
                         mAudioTrack.play();
                     }
                     Log.e(TAG, String.format(Locale.getDefault(), "Setup @ %d", threadId));
@@ -247,7 +247,7 @@ public class MediaProfiler extends AbsAsyncMultiTask {
     }
 
     @Override
-    public void onResultAvailable(Bundle result) {
+    public void onTaskResultAvailable(Bundle result) {
 
     }
 

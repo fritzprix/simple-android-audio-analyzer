@@ -1,26 +1,26 @@
 package com.example.innocentevil.mediaprofiler.renderer;
 
-import com.example.innocentevil.mediaprofiler.async.AbsAsyncTask;
-import com.example.innocentevil.mediaprofiler.async.Callback;
-
 import android.graphics.Canvas;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.example.innocentevil.mediaprofiler.async.AbsAsyncTask;
+import com.example.innocentevil.mediaprofiler.async.TaskListener;
+
 /**
  * Created by innocentevil on 17. 5. 25.
  */
 
-public abstract class BaseRenderer extends AbsAsyncTask implements SurfaceHolder.Callback, Callback {
+public abstract class BaseRenderer extends AbsAsyncTask implements SurfaceHolder.Callback, TaskListener {
 
     private long WAIT_PERIOD;
     private SurfaceHolder mSurfaceHolder;
 
     public BaseRenderer(int fps) {
         super(0);
-        setCallback(this);
+        setTaskListener(this);
         double fInterval = 1000.0 / fps;
         WAIT_PERIOD = (long) fInterval;
 
@@ -34,7 +34,9 @@ public abstract class BaseRenderer extends AbsAsyncTask implements SurfaceHolder
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         Log.e(TAG, "Surface Changed");
         mSurfaceHolder = holder;
+        onCanvasChanged(format, width, height);
     }
+
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
@@ -69,6 +71,8 @@ public abstract class BaseRenderer extends AbsAsyncTask implements SurfaceHolder
 
     protected abstract void onDraw(Canvas canvas);
 
+    protected abstract void onCanvasChanged(int format, int width, int height);
+
     @Override
     protected boolean doSetup(Bundle param) {
         return true;
@@ -85,22 +89,22 @@ public abstract class BaseRenderer extends AbsAsyncTask implements SurfaceHolder
     }
 
     @Override
-    public void onProgressUpdate(int taskId, float progress) {
+    public void onTaskProgressUpdate(int taskId, float progress) {
 
     }
 
     @Override
-    public void onStart(int taskId) {
+    public void onTaskStart(int taskId) {
 
     }
 
     @Override
-    public void onStop(int taskId) {
+    public void onTaskStop(int taskId) {
 
     }
 
     @Override
-    public void onResultAvailable(Bundle result) {
+    public void onTaskResultAvailable(Bundle result) {
 
     }
 

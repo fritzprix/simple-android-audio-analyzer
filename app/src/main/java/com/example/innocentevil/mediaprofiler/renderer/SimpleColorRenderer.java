@@ -21,13 +21,21 @@ public class SimpleColorRenderer extends BaseRenderer {
     }
 
     public void setColor(int r, int g, int b) {
-        red = 255 & r;
-        green = 255 & g;
-        blue = 255 & b;
+        red =  r > 255 ? 255 : r;
+        green =  g > 255 ? 255 : g;
+        blue =   b > 255 ? 255 : b;
+//        Log.e(TAG, String.format(Locale.getDefault(),
+//                "R : %d, G : %d , B : %d",
+//                r, g, b));
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         canvas.drawColor(Color.rgb(red, green, blue));
+    }
+
+    @Override
+    protected void onCanvasChanged(int format, int width, int height) {
+
     }
 }

@@ -12,15 +12,8 @@ import java.util.concurrent.CyclicBarrier;
  * Created by innocentevil on 17. 5. 10.
  */
 
-public abstract class AbsAsyncMultiTask implements Asynchronous, Callback {
+public abstract class AbsAsyncMultiTask implements Asynchronous, TaskListener {
 
-
-    public interface Callback {
-        void onProgressUpdate(int taskId, int threadId, float progress);
-        void onStart(int taskId, int threadId);
-        void onStop(int taskId, int threadId);
-        void onResultAvailable(int taskId, int threadId, Bundle param);
-    }
 
     private class AsyncUnitTask extends AbsAsyncTask {
         private WeakReference<CyclicBarrier> wrBarrier;
@@ -75,7 +68,7 @@ public abstract class AbsAsyncMultiTask implements Asynchronous, Callback {
 
     private LinkedList<AsyncUnitTask> asyncs;
     private int taskId;
-    private WeakReference<Callback> wrCallback;
+    private WeakReference<ThreadedTaskListener> wrCallback;
     private CyclicBarrier mSyncBarrier;
 
     public AbsAsyncMultiTask(int taskId, int threadCount) {
@@ -84,14 +77,14 @@ public abstract class AbsAsyncMultiTask implements Asynchronous, Callback {
         asyncs = new LinkedList<>();
         for (int i = 0; i < threadCount; i++) {
             AsyncUnitTask unitTask = new AsyncUnitTask(i, mSyncBarrier);
-            unitTask.setCallback(this);
+            unitTask.setTaskListener(this);
             asyncs.add(unitTask);
         }
-        wrCallback = new WeakReference<Callback>(null);
+        wrCallback = new WeakReference<ThreadedTaskListener>(null);
     }
 
-    public void setCallback(Callback callback){
-        wrCallback = new WeakReference<Callback>(callback);
+    public void setThreadedTaskListener(ThreadedTaskListener asyncThreadedTaskListener){
+        wrCallback = new WeakReference<ThreadedTaskListener>(asyncThreadedTaskListener);
     }
 
 
@@ -139,30 +132,30 @@ public abstract class AbsAsyncMultiTask implements Asynchronous, Callback {
     }
 
     @Override
-    public void onProgressUpdate(int taskId, float progress) {
-        final Callback callback = wrCallback.get();
-        if(callback == null) {
+    public void onTaskProgressUpdate(int taskId, float progress) {
+        final ThreadedTaskListener asyncThreadedTaskListener = wrCallback.get();
+        if(asyncThreadedTaskListener == null) {
             return;
         }
-        callback.onProgressUpdate(getTaskId(), taskId, progress);
+        asyncThreadedTaskListener.onThreadedTaskProgressUpdate(getTaskId(), taskId, progress);
     }
 
     @Override
-    public void onStart(int taskId) {
-        final Callback callback = wrCallback.get();
-        if(callback == null) {
+    public void onTaskStart(int taskId) {
+        final ThreadedTaskListener asyncThreadedTaskListener = wrCallback.get();
+        if(asyncThreadedTaskListener == null) {
             return;
         }
-        callback.onStart(getTaskId(), taskId);
+        asyncThreadedTaskListener.onThreadedTaskStart(getTaskId(), taskId);
     }
 
     @Override
-    public void onStop(int taskId) {
-        final Callback callback = wrCallback.get();
-        if(callback == null) {
+    public void onTaskStop(int taskId) {
+        final ThreadedTaskListener asyncThreadedTaskListener = wrCallback.get();
+        if(asyncThreadedTaskListener == null) {
             return;
         }
-        callback.onStop(getTaskId(), taskId);
+        asyncThreadedTaskListener.onThreadedTaskStop(getTaskId(), taskId);
     }
 
     protected abstract boolean doSetup(int threadId, Bundle param);

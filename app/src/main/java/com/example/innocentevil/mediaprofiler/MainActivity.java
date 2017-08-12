@@ -1,28 +1,23 @@
 package com.example.innocentevil.mediaprofiler;
 
-import android.content.Context;
 import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
 import android.media.MediaFormat;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
-import android.os.PowerManager;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 
-import com.example.innocentevil.mediaprofiler.async.AbsAsyncMultiTask;
-import com.example.innocentevil.mediaprofiler.async.Callback;
+import com.example.innocentevil.mediaprofiler.async.ThreadedTaskListener;
 import com.example.innocentevil.mediaprofiler.media.FrequencyExtractor;
 import com.example.innocentevil.mediaprofiler.media.MediaProfiler;
-import com.example.innocentevil.mediaprofiler.renderer.FreqRenderer;
 import com.example.innocentevil.mediaprofiler.renderer.SimpleColorRenderer;
 
 import java.io.IOException;
@@ -31,7 +26,7 @@ import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, AbsAsyncMultiTask.Callback, MediaProfiler.Callback, FrequencyExtractor.Callback {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, ThreadedTaskListener, MediaProfiler.AsyncThreadedTaskListener, FrequencyExtractor.AsyncThreadedTaskListener {
 
     private static final int TASK_ID_MEDIA_PROFILER = 0x01;
     private static final int REQUEST_PICK_AUDIO = 0x03;
@@ -41,32 +36,96 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Button mediaProfileActionBtn;
     private MediaProfiler mediaProfiler;
     private FrequencyExtractor mFrequencyExtractor;
-//    private FreqRenderer mFreqRenderer;
     private SimpleColorRenderer mColorRenderer;
     private SurfaceView mSurfaceView;
     private boolean mediaProfileStarted;
     private short[] left;
     private short[] right;
     private static final int[] FREQ = {
-            50,
-            75,
+            40,
+            60,
+            70,
             112,
+            138,
             167,
+            200,
             249,
+            310,
             371,
             553,
             824,
+            1000,
+            1100,
             1228,
+            1492,
+            1620,
             1830,
+            2200,
+            2400,
             2727,
+            3100,
+            3450,
+            3700,
             4063,
+            5000,
             6054,
+            7500,
             9020,
             13440,
-            20000
+            15020,
+            18500,
+
+       /*
+            50,
+            165,
+            280,
+            395,
+            510,
+            625,
+            740,
+            855,
+            970,
+            1085,
+            1200,
+            1315,
+            1430,
+            1545,
+            1660,
+            1775,
+            1890,
+            2005,
+            2120,
+            2235,
+            2350,
+            2465,
+            2580,
+            2695,
+            2810,
+            2925,
+            3040,
+            3155,
+            3270,
+            3385,
+            3500,
+            3615,
+            3730,
+            3845,
+            3960,
+            4075,
+            4190,
+            4305,
+            4420,
+            4535,
+            4650,
+            4765,
+            4880,
+            4995,
+            5110,
+            5225,
+            */
     };
 
-    private PowerManager.WakeLock wakeLock;
+    private int channelCount;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +138,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mediaProfileActionBtn.setOnClickListener(this);
 
         mediaProfiler = new MediaProfiler(TASK_ID_MEDIA_PROFILER);
-        mColorRenderer = new SimpleColorRenderer(60);
+        mColorRenderer = new SimpleColorRenderer(30);
     }
 
     @Override
@@ -145,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     @Override
-    public void onProgressUpdate(int taskId, int threadId, float progress) {
+    public void onThreadedTaskProgressUpdate(int taskId, int threadId, float progress) {
         switch (taskId) {
             case TASK_ID_MEDIA_PROFILER:
                 break;
@@ -153,15 +212,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
-    public void onFreqExtracted(int... mag) {
-        mColorRenderer.setColor(
-                ((mag[0] >> 3) + (mag[1] >> 3) + (mag[2] >> 3) + (mag[3] >> 3) + (mag[4] >> 4)) >> 1,
-                ((mag[4] >> 4) + (mag[5] >> 3) + (mag[6] >> 3) + (mag[7] >> 4)) >> 1,
-                ((mag[7] >> 4) + (mag[8] >> 2) + (mag[9] >> 2) + (mag[10] >> 2) + (mag[11] >> 2) + (mag[12] >> 2) +(mag[13] >> 2) + (mag[14] >> 2) + (mag[15] >> 2)) >> 1);
+    public void onFreqExtracted(float[] mag) {
+//        mColorRenderer.setColor((int) ((mag[0] + mag[1] + mag[2] + mag[3] + mag[4] + mag[5] + mag[6] + mag[7]) * 355.0f),
+//                (int) ((mag[8] + mag[9] + mag[10] + mag[11] + mag[12] + mag[13] + mag[14] + mag[15] + mag[16] + mag[17] + mag[18] + mag[19] + mag[20] + mag[21] + mag[22] + mag[23] + mag[24]) * 550.0f),
+//                (int) ((mag[25] + mag[26] + mag[27] + mag[28] + mag[29] + mag[30] + mag[31] + mag[32] + mag[33] + mag[34] + mag[35] + mag[36] + mag[37] + mag[38] + mag[39] + mag[40]) * 550.0f));
+                mColorRenderer.setColor((int) ((mag[0] + mag[1] + mag[2] + mag[3] + mag[4] + mag[5] + mag[6] + mag[7] + mag[8]) * 300.0f),
+                (int) ((mag[8] + mag[9] + mag[10] + mag[11] + mag[12] + mag[13] + mag[14] + mag[15] + mag[16] + mag[17]) * 550.0f),
+                (int) ((mag[17] + mag[18] + mag[19] + mag[20] + mag[21] + mag[22] + mag[23] + mag[24] + mag[25] + mag[26] + mag[27] + mag[28] + mag[29] + mag[30] + mag[31]) * 550.0f));
     }
 
     @Override
-    public void onStart(int taskId, int threadId) {
+    public void onThreadedTaskStart(int taskId, int threadId) {
         Log.e(TAG, String.format(Locale.getDefault(), "On Start @ %d", taskId));
         switch (taskId) {
             case TASK_ID_MEDIA_PROFILER:
@@ -175,7 +236,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
-    public void onStop(int taskId, int threadId) {
+    public void onThreadedTaskStop(int taskId, int threadId) {
         Log.e(TAG, String.format(Locale.getDefault(), "On Stop @ %d", taskId));
         switch (taskId) {
             case TASK_ID_MEDIA_PROFILER:
@@ -196,12 +257,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
-    public void onResultAvailable(int taskId, int threadId, Bundle param) {
+    public void onThreadedTaskResultAvailable(int taskId, int threadId, Bundle param) {
 
     }
 
     @Override
     public void onFormatUpdate(MediaFormat format) {
+        channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
         int sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE);
         int audioFormat = format.getInteger(MediaFormat.KEY_PCM_ENCODING);
         Log.e(TAG, String.format(Locale.getDefault(),
@@ -223,10 +285,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         ShortBuffer pcmBuffer = writeBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
         size >>= 1;
         pcmBuffer.get(left, 0, size);
-        for (int i = 0; i < size >> 1; i++) {
-            left[i] = left[i << 1];
-            right[i] = left[(i << 1) + 1];
+        if(channelCount > 1) {
+            for (int i = 0; i < size >> 1; i++) {
+                left[i] = left[i << 1];
+                right[i] = left[(i << 1) + 1];
+            }
+            mFrequencyExtractor.write(left, size);
+        } else {
+            mFrequencyExtractor.write(left, size);
         }
-        mFrequencyExtractor.write(left, size);
     }
 }
